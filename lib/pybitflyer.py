@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
-import requests
 import time
 import hmac
 import hashlib
 import urllib
+
+import requests
+
 
 
 class API(object):
