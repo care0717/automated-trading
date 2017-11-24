@@ -3,3 +3,4 @@ myenv
 *.csv
 __*
 *.h5
+.DS_Store
