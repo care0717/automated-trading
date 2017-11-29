@@ -17,16 +17,17 @@ from keras.optimizers import Adam
 class Prediction:
   def __init__(self):
     self.model = Sequential()
-    self.length_of_sequences = 24
+    self.length_of_sequences = 10
     self.in_neurons = 10
     self.out_neurons = 1
     self.hidden_neurons = 128
 
   def load_data(self, data, n_prev):
     X, Y = [], []
-    for i in range(len(data) - n_prev):
-      X.append(data.iloc[i:(i + n_prev)].as_matrix())
-      if data.iloc[i + n_prev][0] > data.iloc[i + n_prev - 1][0]:
+    data_new_index = data.reset_index(drop=True)
+    for i in range(len(data_new_index) - n_prev):
+      X.append(data_new_index.iloc[i:(i + n_prev)].as_matrix())
+      if data_new_index['close'][i + n_prev] > data_new_index['close'][i + n_prev - 1]:
         tmp = 1
       else:
         tmp = 0
@@ -34,6 +35,7 @@ class Prediction:
     retX = np.array(X)
     retY = np.array(Y)
     return retX, retY
+
   def create_predict_data(self, data, n_prev):
     X = []
     for i in range(len(data) - n_prev + 1):
@@ -51,23 +53,26 @@ class Prediction:
     s = pd.Series(y, index=x)
 
   def create_model(self, weights_path=None):
-    dropout = 0.5
-    self.model.add(LSTM(64,
+    dropout = 0.2
+    self.model.add(LSTM(256,
               batch_input_shape=(
                 None, self.length_of_sequences, self.in_neurons),
               return_sequences=True))
     self.model.add(Dropout(dropout))
-    for i in range(0):                  
-      self.model.add(LSTM(32, return_sequences=True))  # 32次元のベクトルを一つ出力する
+    #self.model.add(Activation('relu'))
+    for i in range(0):
+      self.model.add(LSTM(256, return_sequences=True))  # 32次元のベクトルを一つ出力する
       self.model.add(Dropout(dropout))
-    self.model.add(LSTM(32))  # 32次元のベクトルを一つ出力する
+    #self.model.add(Activation('relu'))
+    self.model.add(LSTM(500))  # 32次元のベクトルを一つ出力する
     self.model.add(Dropout(dropout))
     self.model.add(Dense(self.out_neurons))
     self.model.add(Activation("sigmoid"))
     if weights_path:
       self.model.load_weights(weights_path)
-    self.model.compile(loss="binary_crossentropy",
-               optimizer="adam", metrics=['accuracy'])
+    self.model.compile(loss="binary_crossentropy", metrics=['accuracy'],
+               optimizer=Adam(lr=0.01)#,decay=1e-6)
+               )
 
   def predict(self, X_test):
     self.model.predict(X_test)
@@ -106,31 +111,29 @@ if __name__ == "__main__":
           'open', 'date'] + info_list
 
   # 終値のデータを標準化
+  info_list = info_list + ['close', 'high', 'low']
 
   for i in info_list:
-    data[i] = data[i] / max(data[i])
-  data['close'] = data['close'] / 1100000
-  data['low'] = data['low'] / 1100000
-  data['high'] = data['high'] / 1100000
-
-  info_list = info_list + ['close', 'high', 'low']
+    data[i] = data[i]/max(data[i])#(data[i]-min(data[i]) / (max(data[i])-min(data[i]))
   data = data.sort_values(by='date')
   data = data.reset_index(drop=True)
   data = data.loc[:, ['date'] + info_list]
+
 
   # 2割をテストデータへ
   split_pos = int(len(data) * 0.99)
   x_train, y_train = prediction.load_data(
     data[info_list], prediction.length_of_sequences)
+  #print(x_train)
+  #print(y_train)
   x_test,  y_test = prediction.load_data(
     data[info_list].iloc[split_pos:], prediction.length_of_sequences)
-  print(x_train.shape)
   prediction.create_model()#'bitflyer_weights_which_lstm64-32.h5')
   plot_model(prediction.model, to_file='model.png',
          show_shapes=True, show_layer_names=True)
   res = prediction.model.fit(x_train, y_train, batch_size=10,
-                 nb_epoch=15, validation_split=0.1)  # , callbacks=[EarlyStopping()])
-  prediction.model.save_weights('bitflyer_weights_which_lstm64-32.h5')
+                 nb_epoch=50, validation_split=0.25)  # , callbacks=[EarlyStopping()])
+  prediction.model.save_weights('bitflyer_weights_which_lstm-256500.h5')
   predicted = prediction.model.predict(x_test)
   result = pd.DataFrame(predicted)
   result.columns = ['predict']

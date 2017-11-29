@@ -19,6 +19,9 @@ def download_data(num, start_time):
     res = data + res
     time_stamp = "&toTs=" + str(data[0]['time'] - 1)
   res = pd.DataFrame.from_dict(res)[:-1]
+#  for i in range(len(res)-24):
+ #   average(res.iloc[i:i+24])
+
   for c in coin_list:
     time_stamp = "" 
     tmp = []
@@ -52,6 +55,6 @@ def fetch_last_data(num):
 
 
 if __name__ == '__main__':
-  start_time = 1435125599
+  start_time = 1442260800 # 1435125599　はじめはすてる
   res = download_data(2000, start_time)
   res[res.time >= start_time].to_csv("bitflyer_BTCJPY.csv", index=False)
